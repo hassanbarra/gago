@@ -67,9 +67,9 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.parseColor("#13161c"))
         }
         col.addView(label("Pad Bridge", 26f, Color.WHITE))
-        col.addView(label("PC address (the PC program prints it)", 13f, Color.GRAY))
+        col.addView(label("PC address (USB: localhost:8080)", 13f, Color.GRAY))
         addr = EditText(this).apply {
-            setText(prefs.getString("addr", "192.168.1.23:8080"))
+            setText(prefs.getString("addr", "localhost:8080"))
             setTextColor(Color.WHITE)
             isSingleLine = true
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
@@ -93,8 +93,9 @@ class MainActivity : Activity() {
         })
         col.addView(label(
             "1. Pair your controller in Android Bluetooth settings.\n" +
-            "2. Start the PC program, type its address above, tap Start.\n" +
-            "3. Keep this app open in front while you play. Tap Dim screen to save battery; tap the black screen to come back.",
+            "2. Plug the phone into the PC with USB debugging on, and start the PC program.\n" +
+            "3. Type localhost:8080 above and tap Start.\n" +
+            "4. Keep this app open in front while you play. Tap Dim screen to save battery; tap the black screen to come back.",
             13f, Color.GRAY))
 
         dim = View(this).apply {

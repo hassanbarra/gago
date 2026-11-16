@@ -206,18 +206,26 @@ class MainActivity : Activity() {
     @Suppress("NewApi")
     private fun batteryOf(d: InputDevice): String {
         if (Build.VERSION.SDK_INT < 31) return "not shown on this Android version"
-        val b = d.batteryState
-        if (!b.isPresent) return "not reported by this controller"
-        val c = b.capacity
-        if (c.isNaN()) return "unknown"
-        val pct = Math.round(c * 100)
-        return if (b.status == BatteryState.STATUS_CHARGING) "$pct% (charging)" else "$pct%"
+        return try {
+            val b = d.batteryState
+            if (!b.isPresent) return "not reported by this controller"
+            val c = b.capacity
+            if (c.isNaN()) return "unknown"
+            val pct = Math.round(c * 100)
+            if (b.status == BatteryState.STATUS_CHARGING) "$pct% (charging)" else "$pct%"
+        } catch (e: Throwable) {
+            "not available"
+        }
     }
 
     private fun refreshControllers() {
-        val list = InputDevice.getDeviceIds().toList()
-            .mapNotNull { InputDevice.getDevice(it) }
-            .filter { isGamepadDevice(it) && !it.isVirtual }
+        val list = try {
+            InputDevice.getDeviceIds().toList()
+                .mapNotNull { InputDevice.getDevice(it) }
+                .filter { isGamepadDevice(it) && !it.isVirtual }
+        } catch (e: Throwable) {
+            emptyList()
+        }
         if (list.isEmpty()) {
             padText.text = "No controller found"
             batteryText.text = "Pair it in Bluetooth settings"
@@ -233,7 +241,11 @@ class MainActivity : Activity() {
 
     private val refresh = object : Runnable {
         override fun run() {
-            refreshControllers()
+            try {
+                refreshControllers()
+            } catch (e: Throwable) {
+                // never let the status card crash the app
+            }
             ui.postDelayed(this, 3000)
         }
     }
@@ -412,6 +424,15 @@ class MainActivity : Activity() {
 
     @Suppress("DEPRECATION")
     private fun rumble(index: Int, amp: Float) {
+        try {
+            doRumble(index, amp)
+        } catch (e: Throwable) {
+            // some phones refuse vibration from controllers; ignore
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun doRumble(index: Int, amp: Float) {
         val id = pads.entries.firstOrNull { it.value.idx == index }?.key ?: return
         val d = InputDevice.getDevice(id) ?: return
         val v = if (Build.VERSION.SDK_INT >= 31) d.vibratorManager.defaultVibrator else d.vibrator

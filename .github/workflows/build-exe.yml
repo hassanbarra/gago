@@ -1,0 +1,47 @@
+name: Build PadBridge.exe
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - run: gradle assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PadBridge-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+  exe:
+    needs: apk
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: PadBridge-apk
+          path: apk
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install aiohttp vgamepad pyinstaller
+      - name: Get adb and the phone app
+        run: |
+          Invoke-WebRequest https://dl.google.com/android/repository/platform-tools-latest-windows.zip -OutFile pt.zip
+          Expand-Archive pt.zip -DestinationPath .
+          Copy-Item apk\app-debug.apk PadBridge.apk
+      - name: Build exe
+        run: python -m PyInstaller --onefile --noconsole --name PadBridge --collect-all vgamepad --add-data "platform-tools;platform-tools" --add-data "PadBridge.apk;." pad_bridge_gui.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PadBridge-exe
+          path: dist/PadBridge.exe

@@ -33,7 +33,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: name: Install packages
+      - name: Install packages
         env:
           VGAMEPAD_SKIP_VIGEMBUS_INSTALL: "true"
         run: pip install aiohttp vgamepad pyinstaller

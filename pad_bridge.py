@@ -28,7 +28,7 @@ import vgamepad as vg
 
 DEBUG = "--debug" in sys.argv   # print every message from the phone
 log = print          # the GUI replaces this to show messages in its window
-STATE = {"adb": None, "phone": "none", "clients": 0, "pads": 0}   # read by the GUI
+STATE = {"adb": None, "phone": "none", "clients": 0, "pads": 0, "port": 8080}   # read by the GUI
 PORT = 8080        # plain HTTP, this PC only (reached from the phone through adb)
 B = vg.XUSB_BUTTON
 # W3C "standard" gamepad button index -> Xbox 360 button
@@ -226,9 +226,11 @@ async def usb_watcher(adb):
     while True:
         state = await asyncio.to_thread(phone_state, adb)
         if state == "ready":
+            pc_port = STATE["port"]
             _, lst = await asyncio.to_thread(run_adb, adb, "reverse", "--list")
-            if f"tcp:{PORT}" not in lst:
-                code, out = await asyncio.to_thread(run_adb, adb, "reverse", f"tcp:{PORT}", f"tcp:{PORT}")
+            if f"tcp:{PORT} tcp:{pc_port}" not in lst:
+                # phone's localhost:8080  ->  this PC's port (replaces any old link)
+                code, out = await asyncio.to_thread(run_adb, adb, "reverse", f"tcp:{PORT}", f"tcp:{pc_port}")
                 if code != 0:
                     state = "error: " + out.strip()
         STATE["phone"] = state
@@ -253,7 +255,15 @@ async def serve(adb=None, stop=None):
     app.add_routes([web.get("/", index), web.get("/ws", ws_handler)])
     runner = web.AppRunner(app)
     await runner.setup()
-    await web.TCPSite(runner, "127.0.0.1", PORT).start()
+    try:
+        await web.TCPSite(runner, "127.0.0.1", PORT).start()
+    except OSError:
+        # Port 8080 is taken on this PC: use any free port. The phone app is unaffected,
+        # because adb maps the phone's localhost:8080 to whichever port we use here.
+        await web.TCPSite(runner, "127.0.0.1", 0).start()
+        log(f"Port {PORT} is busy on this PC, so another port is used. "
+            f"The phone app still uses localhost:{PORT}.")
+    STATE["port"] = runner.addresses[0][1]
     log("Pad Bridge is running (USB only). Leave it open while you play.")
     watcher = asyncio.create_task(usb_watcher(adb))
     try:

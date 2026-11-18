@@ -33,7 +33,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install aiohttp vgamepad pyinstaller
+      - run: name: Install packages
+        env:
+          VGAMEPAD_SKIP_VIGEMBUS_INSTALL: "true"
+        run: pip install aiohttp vgamepad pyinstaller
       - name: Get adb and the phone app
         run: |
           Invoke-WebRequest https://dl.google.com/android/repository/platform-tools-latest-windows.zip -OutFile pt.zip

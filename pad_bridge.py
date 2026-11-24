@@ -196,8 +196,10 @@ NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)   # stops console windows
 
 def run_adb(adb, *args, timeout=15):
     try:
-        r = subprocess.run([adb, *args], capture_output=True, text=True, timeout=timeout,
-                           creationflags=NO_WINDOW)
+        # stdin=DEVNULL matters: in a windowed .exe there is no stdin, and without this
+        # Windows raises "The handle is invalid" and adb silently never runs.
+        r = subprocess.run([adb, *args], stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                           timeout=timeout, creationflags=NO_WINDOW)
         return r.returncode, (r.stdout or "") + (r.stderr or "")
     except (OSError, subprocess.SubprocessError) as e:
         return 1, str(e)
@@ -205,6 +207,8 @@ def run_adb(adb, *args, timeout=15):
 
 def phone_state(adb):
     _, out = run_adb(adb, "devices")
+    if "List of devices" not in out:
+        return "error: adb did not run: " + out.strip()[:80]
     rows = [l.split() for l in out.strip().splitlines()[1:] if len(l.split()) >= 2]
     if any(r[1] == "device" for r in rows):
         return "ready"
